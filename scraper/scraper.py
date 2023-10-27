@@ -190,5 +190,5 @@ class Scraper :
 		this.writeToCsv(this.out_fn, fields, 'w');
 		this.executeLocations();
 
-scraper = Scraper();
-scraper.execute();
+# scraper = Scraper();
+# scraper.execute();
