@@ -5,6 +5,7 @@ import sqlalchemy as sa
 import googlemaps
 from dotenv import load_dotenv
 import psycopg2
+import time
 # from scraper import Scraper
 
 load_dotenv()
@@ -34,7 +35,7 @@ stores = df_csv.loc[:, ["Store ID", "Address", "City", "State", "Postcode", "Pho
 # grab and format liquor
 liquor = df_csv.loc[:, ["Description", "Item Code", "New Item Code", "Size", "Proof", "Age", "Case Price", "Bottle Price", "Category", "Store ID", "Qty"]]
 
-# ormat db stores into dataframe
+# format db into dataframes
 query = """SELECT * FROM stores"""
 df_stores = pd.read_sql(query, conn)
 query = """SELECT * FROM liquor"""
@@ -69,9 +70,11 @@ cursor = conn.cursor()
 #       print(f'store {store_id} already exists')
 
 
+start = time.time()
 for entry in liquor.iterrows():
   liquor_id = str(entry[1].iloc[2])
   store_id = entry[1].iloc[9]
+  print(liquor_id, store_id)
   # if liquor_id not in df_liquor['id'].values:
   #   description, item_code, _, size, proof, age, case_price, bottle_price, type, store_id, _ = entry[1].iloc
   #   case_price = float(case_price.replace('$', ''))
@@ -86,15 +89,21 @@ for entry in liquor.iterrows():
   #     print(f'liquor {liquor_id} added')
   #   except:
   #     print(f'liquor {liquor_id} already exists')
-
-  if liquor_id in df_liquor_stores['liquor_id'].values:
-    quantity = entry[1].iloc[10]
+  ls_exists = False if len(df_liquor_stores.loc[(df_liquor_stores['liquor_id'] == liquor_id) & (df_liquor_stores['store_id'] == store_id)]) == 0 else True
+  quantity = entry[1].iloc[10]
+  if ls_exists:
     query = """
     UPDATE liquor_store
     SET quantity = %s
     WHERE liquor_id = %s AND store_id = %s;
     """
     cursor.execute(query, (quantity, liquor_id, store_id))
-    break
-
+  else:
+    query = """
+    INSERT INTO liquor_store (quantity, liquor_id, store_id)
+    VALUES (%s, %s, %s);
+    """
+    cursor.execute(query, (quantity, liquor_id, store_id))
+end = time.time()    
+print(end - start)
 conn.close()
