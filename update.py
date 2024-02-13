@@ -74,6 +74,7 @@ start = time.time()
 for entry in liquor.iterrows():
   liquor_id = str(entry[1].iloc[2])
   store_id = entry[1].iloc[9]
+  quantity = entry[1].iloc[10]
   print(liquor_id, store_id)
   # if liquor_id not in df_liquor['id'].values:
   #   description, item_code, _, size, proof, age, case_price, bottle_price, type, store_id, _ = entry[1].iloc
@@ -89,21 +90,31 @@ for entry in liquor.iterrows():
   #     print(f'liquor {liquor_id} added')
   #   except:
   #     print(f'liquor {liquor_id} already exists')
-  ls_exists = False if len(df_liquor_stores.loc[(df_liquor_stores['liquor_id'] == liquor_id) & (df_liquor_stores['store_id'] == store_id)]) == 0 else True
-  quantity = entry[1].iloc[10]
-  if ls_exists:
-    query = """
-    UPDATE liquor_store
-    SET quantity = %s
-    WHERE liquor_id = %s AND store_id = %s;
-    """
-    cursor.execute(query, (quantity, liquor_id, store_id))
-  else:
-    query = """
-    INSERT INTO liquor_store (quantity, liquor_id, store_id)
-    VALUES (%s, %s, %s);
-    """
-    cursor.execute(query, (quantity, liquor_id, store_id))
+
+  query = """
+  INSERT INTO liquor_store (liquor_id, store_id, quantity)
+  VALUES (%s, %s, %s)
+  ON CONFLICT (id)
+  DO UPDATE SET quantity = %s;
+  """
+  cursor.execute(query, (liquor_id, store_id, quantity, quantity))
+
+
+  # ls_exists = False if len(df_liquor_stores.loc[(df_liquor_stores['liquor_id'] == liquor_id) & (df_liquor_stores['store_id'] == store_id)]) == 0 else True
+  # quantity = entry[1].iloc[10]
+  # if ls_exists:
+  #   query = """
+  #   UPDATE liquor_store
+  #   SET quantity = %s
+  #   WHERE liquor_id = %s AND store_id = %s;
+  #   """
+  #   cursor.execute(query, (quantity, liquor_id, store_id))
+  # else:
+  #   query = """
+  #   INSERT INTO liquor_store (quantity, liquor_id, store_id)
+  #   VALUES (%s, %s, %s);
+  #   """
+  #   cursor.execute(query, (quantity, liquor_id, store_id))
 end = time.time()    
 print(end - start)
 conn.close()
