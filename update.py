@@ -1,18 +1,21 @@
 import os
-from urllib.parse import quote_plus
 import pandas as pd
 import sqlalchemy as sa
 import googlemaps
 from dotenv import load_dotenv
 import psycopg2
+from psycopg2.extras import execute_batch
 import time
-# from scraper import Scraper
+from scraper.scraper import Scraper
+
+start = time.time()
 
 load_dotenv()
-# scraper = Scraper();
-# scraper.execute();
 
 gmaps = googlemaps.Client(key=os.getenv('GM_KEY'))
+
+scraper = Scraper();
+scraper.execute();
 
 # run scraper to create new csv
 # check all stores are present
@@ -61,48 +64,62 @@ for entry in stores.iterrows():
     print(f'store {store_id} already exists')
     continue
   else:
+    store_id_list.append(store_id)
     # format address
     address = f'{entry[1].iloc[1]} {entry[1].iloc[2]}, {entry[1].iloc[3]} {entry[1].iloc[4]}'
     phone_number = entry[1].iloc[5]
     # destructure lat/lng from geocode
     lat, lng = gmaps.geocode(address)[0]['geometry']['location'].values()
     # update query to add new store
-    query = """
+    store_query = """
     INSERT INTO stores (id, address, phone_number, coordinates)
     VALUES (%s, %s, %s, %s);
     """
-    cursor.execute(query, (store_id, address, phone_number, [lat, lng]))
+    cursor.execute(store_query, (store_id, address, phone_number, [lat, lng]))
     print(f'store {store_id} added')
 
-
-start = time.time()
+liquor_input_list = []
+liquor_store_input_list = []
+row_count = 0
+liquor_query = """
+INSERT INTO liquor (id, item_code, description, size, proof, age, case_price, bottle_price, type, img)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (id)
+DO NOTHING;
+"""
+liquor_store_query = """
+INSERT INTO liquor_store (liquor_id, store_id, quantity)
+VALUES (%s, %s, %s)
+ON CONFLICT (id)
+DO UPDATE SET quantity = %s;
+"""
 for entry in liquor.iterrows():
   liquor_id = str(entry[1].iloc[2])
   store_id = entry[1].iloc[9]
   quantity = entry[1].iloc[10]
   print(liquor_id, store_id)
-  # if liquor_id not in df_liquor['id'].values:
-  #   description, item_code, _, size, proof, age, case_price, bottle_price, type, store_id, _ = entry[1].iloc
-  #   case_price = float(case_price.replace('$', ''))
-  #   bottle_price = float(bottle_price.replace('$', ''))
-  #   img = ''
-  #   query = """
-  #   INSERT INTO liquor (id, item_code, description, size, proof, age, case_price, bottle_price, type, img)
-  #   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-  #   """
-  #   try:
-  #     cursor.execute(query, (liquor_id, item_code, description, size, proof, age, case_price, bottle_price, type, img))
-  #     print(f'liquor {liquor_id} added')
-  #   except:
-  #     print(f'liquor {liquor_id} already exists')
+  
+  description, item_code, _, size, proof, age, case_price, bottle_price, type, store_id, _ = entry[1].iloc
+  case_price = float(case_price.replace('$', ''))
+  bottle_price = float(bottle_price.replace('$', ''))
+  img = ''
+  liquor_input_list.append((liquor_id, item_code, description, size, proof, age, case_price, bottle_price, type, img))
+  # cursor.execute(liquor_query, (liquor_id, item_code, description, size, proof, age, case_price, bottle_price, type, img))
 
-  query = """
-  INSERT INTO liquor_store (liquor_id, store_id, quantity)
-  VALUES (%s, %s, %s)
-  ON CONFLICT (id)
-  DO UPDATE SET quantity = %s;
-  """
-  cursor.execute(query, (liquor_id, store_id, quantity, quantity))
+  liquor_store_input_list.append((liquor_id, store_id, quantity, quantity))
+  # cursor.execute(liquor_store_query, (liquor_id, store_id, quantity, quantity))
+
+  row_count += 1
+  if row_count >= 99:
+    execute_batch(cursor, liquor_query, liquor_input_list)
+    liquor_input_list = []
+    execute_batch(cursor, liquor_store_query, liquor_store_input_list)
+    liquor_store_input_list = []
+    row_count = 0
+
+execute_batch(cursor, liquor_query, liquor_input_list)
+execute_batch(cursor, liquor_store_query, liquor_store_input_list)
+
 
 end = time.time()    
 print(end - start)
