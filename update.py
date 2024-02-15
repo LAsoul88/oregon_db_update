@@ -29,10 +29,6 @@ conn = engine.connect()
 # format db into dataframes
 query = """SELECT * FROM stores"""
 df_stores = pd.read_sql(query, conn)
-query = """SELECT * FROM liquor"""
-df_liquor = pd.read_sql(query, conn)
-query = """SELECT * FROM liquor_store"""
-df_liquor_stores = pd.read_sql(query, conn)
 
 # format csv into dataframe
 df_csv = pd.read_csv('./ols-results-latest.csv')
