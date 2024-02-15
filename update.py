@@ -49,25 +49,30 @@ conn = psycopg2.connect(conn_string)
 conn.autocommit = True
 cursor = conn.cursor()
 
-# # check if store exists and insert into db if not
-# for entry in stores.iterrows():
-#   store_id = entry[1].iloc[0]
-#   if store_id not in df_stores['id'].values:
-#     # format address
-#     address = f'{entry[1].iloc[1]} {entry[1].iloc[2]}, {entry[1].iloc[3]} {entry[1].iloc[4]}'
-#     phone_number = entry[1].iloc[5]
-#     # destructure lat/lng from geocode
-#     lat, lng = gmaps.geocode(address)[0]['geometry']['location'].values()
-#     # update query to add new store
-#     query = """
-#     INSERT INTO stores (id, address, phone_number, coordinates)
-#     VALUES (%s, %s, %s, %s);
-#     """
-#     try:
-#       cursor.execute(query, (store_id, address, phone_number, [lat, lng]))
-#       print(f'store {store_id} added')
-#     except:
-#       print(f'store {store_id} already exists')
+# create list of ids from current db
+store_id_list = []
+for store in df_stores.iterrows():
+  store_id_list.append(store[1].iloc[0])
+
+# check if store exists and insert into db if not
+for entry in stores.iterrows():
+  store_id = entry[1].iloc[0]
+  if store_id in store_id_list:
+    print(f'store {store_id} already exists')
+    continue
+  else:
+    # format address
+    address = f'{entry[1].iloc[1]} {entry[1].iloc[2]}, {entry[1].iloc[3]} {entry[1].iloc[4]}'
+    phone_number = entry[1].iloc[5]
+    # destructure lat/lng from geocode
+    lat, lng = gmaps.geocode(address)[0]['geometry']['location'].values()
+    # update query to add new store
+    query = """
+    INSERT INTO stores (id, address, phone_number, coordinates)
+    VALUES (%s, %s, %s, %s);
+    """
+    cursor.execute(query, (store_id, address, phone_number, [lat, lng]))
+    print(f'store {store_id} added')
 
 
 start = time.time()
@@ -99,22 +104,6 @@ for entry in liquor.iterrows():
   """
   cursor.execute(query, (liquor_id, store_id, quantity, quantity))
 
-
-  # ls_exists = False if len(df_liquor_stores.loc[(df_liquor_stores['liquor_id'] == liquor_id) & (df_liquor_stores['store_id'] == store_id)]) == 0 else True
-  # quantity = entry[1].iloc[10]
-  # if ls_exists:
-  #   query = """
-  #   UPDATE liquor_store
-  #   SET quantity = %s
-  #   WHERE liquor_id = %s AND store_id = %s;
-  #   """
-  #   cursor.execute(query, (quantity, liquor_id, store_id))
-  # else:
-  #   query = """
-  #   INSERT INTO liquor_store (quantity, liquor_id, store_id)
-  #   VALUES (%s, %s, %s);
-  #   """
-  #   cursor.execute(query, (quantity, liquor_id, store_id))
 end = time.time()    
 print(end - start)
 conn.close()
